@@ -1,0 +1,21 @@
+{
+    "pluginmetadataversion": 2,
+    "name": "JNI Helper",
+    "type": ["helper"],
+    "api": ["python3"],
+    "description": "Auto import JNI types for Android SO analysis. Set first parameter to JNIEnv* to recognize JNI calls.",
+    "longdescription": "# JNI Helper\n\nA Binary Ninja plugin for Android native library analysis.\n\n## Features\n\n- Auto install JNI type library (arm32/arm64)\n- Auto set JNI_OnLoad/JNI_OnUnload signatures\n- Auto set Java_xxx function signatures\n- Right-click any function to set as JNI function\n\n## Usage\n\n1. Open an Android SO file\n2. Run `Plugins -> JNI Helper -> Setup JNI Types`\n3. For obfuscated functions, right-click and select `Set as JNI Function`\n4. Or press Y and manually set first param to `JNIEnv* env`",
+    "license": {
+        "name": "MIT",
+        "text": "MIT License"
+    },
+    "platforms": ["Darwin", "Linux", "Windows"],
+    "installinstructions": {
+        "Darwin": "Copy plugin folder to ~/Library/Application Support/Binary Ninja/plugins/",
+        "Linux": "Copy plugin folder to ~/.binaryninja/plugins/",
+        "Windows": "Copy plugin folder to %APPDATA%/Binary Ninja/plugins/"
+    },
+    "version": "1.0.0",
+    "author": "xiaofeng",
+    "minimumbinaryninjaversion": 3000
+}
