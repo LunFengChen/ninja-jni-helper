@@ -2,9 +2,7 @@
 
 Binary Ninja 插件，自动加载 JNI 类型并设置函数签名，让分析 Android SO 更轻松。
 
-作者：[LunFengChen](https://github.com/LunFengChen)
-
-交流群：686725227 (QQ)
+作者：[LunFengChen](https://github.com/LunFengChen) 交流群：686725227 (QQ)
 
 ## 功能
 
@@ -32,7 +30,7 @@ cd ~/.binaryninja/plugins
 git clone https://github.com/LunFengChen/ninja-jni-helper.git
 ```
 
-重启 Binary Ninja 即可。
+打开 Binary Ninja 加载so即可。
 
 ## 使用
 
