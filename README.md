@@ -7,6 +7,7 @@ Binary Ninja 插件，自动加载 JNI 类型并设置函数签名，让分析 A
 ## 功能
 
 - 自动加载 JNI 类型库（`JNIEnv*`, `JavaVM*`, `jobject` 等）
+- **完整的 JNINativeInterface 结构**：即使类型库加载失败，fallback 也能正确识别 JNI API 调用（如 `NewStringUTF`、`FindClass` 等）
 - 自动设置 `JNI_OnLoad`、`Java_*` 函数签名
 - 导入 Frida RegisterNatives JSON，命名动态注册的 JNI 函数(功能3未测试，有问题和我反馈就行)
 
@@ -84,6 +85,7 @@ QQ Group: 686725227
 ## Features
 
 - Auto-load JNI type library (`JNIEnv*`, `JavaVM*`, `jobject`, etc.)
+- **Complete JNINativeInterface structure**: Even if type library fails to load, fallback correctly identifies JNI API calls (e.g., `NewStringUTF`, `FindClass`)
 - Auto-set `JNI_OnLoad` and `Java_*` function signatures
 - Import Frida RegisterNatives JSON for dynamic JNI functions
 

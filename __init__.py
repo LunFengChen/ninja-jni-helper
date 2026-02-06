@@ -40,6 +40,44 @@ JNI_TYPE_MAP: Dict[str, Tuple[str, str]] = {
 }
 
 
+def inject_jni_base_types(bv: BinaryView) -> bool:
+    """
+    手动注入 JNI 基础类型定义(fallback 方案)
+    从 typelibs/jni_fallback.h 加载完整的 JNI 类型定义
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    # 加载类型定义文件
+    header_path = Path(__file__).parent / "typelibs" / "jni_fallback.h"
+    if not header_path.exists():
+        log_warn(f"[JNI Helper] Fallback header not found: {header_path}")
+        return False
+    
+    try:
+        with open(header_path, 'r', encoding='utf-8') as f:
+            type_definitions = f.read()
+        
+        # 解析并注入类型定义
+        result = bv.parse_types_from_string(type_definitions)
+        if not result.types:
+            log_warn("[JNI Helper] Failed to parse fallback type definitions")
+            return False
+        
+        count = 0
+        for name, type_obj in result.types.items():
+            if not bv.get_type_by_name(name):
+                bv.define_user_type(name, type_obj)
+                count += 1
+        
+        log_info(f"[JNI Helper] Fallback: Injected {count} JNI types (with full JNINativeInterface)")
+        return True
+        
+    except Exception as e:
+        log_warn(f"[JNI Helper] Fallback injection failed: {e}")
+        return False
+
+
 def get_typelib_dir() -> Path:
     """获取 Binary Ninja 类型库目录路径。"""
     return Path(os.environ.get("APPDATA", Path.home())) / "Binary Ninja" / "typelibs"
@@ -74,16 +112,46 @@ def early_setup(bv: BinaryView) -> None:
         return
 
     log_info("[JNI Helper] Phase 1: Loading JNI types...")
+    log_info(f"[JNI Helper] Architecture: {bv.arch.name}")
 
     # 加载类型库
     typelib_path = get_typelib_dir() / bv.arch.name / "jni.bntl"
-    if not typelib_path.exists():
+    log_info(f"[JNI Helper] Type library path: {typelib_path}")
+    log_info(f"[JNI Helper] Type library exists: {typelib_path.exists()}")
+    
+    types_ready = False
+    
+    if typelib_path.exists():
+        try:
+            tl = TypeLibrary.load_from_file(str(typelib_path))
+            if tl and tl not in bv.type_libraries:
+                bv.add_type_library(tl)
+                log_info(f"[JNI Helper] Loaded JNI type library for {bv.arch.name}")
+                
+                # 验证关键类型是否可用 - 检查 JNINativeInterface 结构
+                if bv.get_type_by_name('JNINativeInterface'):
+                    types_ready = True
+                    log_info("[JNI Helper] Type library verified (with JNINativeInterface)")
+                elif bv.get_type_by_name('jobject'):
+                    # 类型库加载了，但没有 JNINativeInterface，需要 fallback
+                    log_warn("[JNI Helper] Type library incomplete (missing JNINativeInterface)")
+                    types_ready = False
+                else:
+                    log_warn("[JNI Helper] Type library loaded but types not available")
+                    types_ready = False
+        except Exception as e:
+            log_warn(f"[JNI Helper] Type library load failed: {e}")
+    else:
+        log_info("[JNI Helper] Type library not found, will use fallback")
+    
+    # Fallback: 手动注入基础类型
+    if not types_ready:
+        log_info("[JNI Helper] Using fallback type injection...")
+        types_ready = inject_jni_base_types(bv)
+    
+    if not types_ready:
+        log_warn("[JNI Helper] Failed to load JNI types, plugin may not work correctly")
         return
-
-    tl = TypeLibrary.load_from_file(str(typelib_path))
-    if tl and tl not in bv.type_libraries:
-        bv.add_type_library(tl)
-        log_info(f"[JNI Helper] Loaded JNI types for {bv.arch.name}")
 
     # 设置固定签名的函数
     fixed_sigs: Dict[str, str] = {
@@ -101,8 +169,10 @@ def early_setup(bv: BinaryView) -> None:
                     func.set_user_type(parsed[0])
                     log_info(f"[JNI Helper] (early) {func.name}")
                     count += 1
+                else:
+                    log_warn(f"[JNI Helper] Failed to parse: {sig}")
             except Exception as e:
-                log_info(f"[JNI Helper] Failed: {func.name}: {e}")
+                log_warn(f"[JNI Helper] Failed: {func.name}: {e}")
 
     if count > 0:
         log_info(f"[JNI Helper] Phase 1 done: {count} fixed functions")
@@ -149,8 +219,10 @@ def poll_java_functions(bv: BinaryView) -> None:
                     func.set_user_type(parsed[0])
                     log_info(f"[JNI Helper] (poll) {name} ({len(func.parameter_vars)} params)")
                     processed.add(name)
+                else:
+                    log_warn(f"[JNI Helper] Failed to parse: {sig}")
             except Exception as e:
-                log_info(f"[JNI Helper] Failed: {name}: {e}")
+                log_warn(f"[JNI Helper] Failed: {name}: {e}")
 
         # 检查是否所有 Java_* 都处理完了
         all_java = [f.name for f in bv.functions if f.name.startswith("Java_")]
@@ -193,8 +265,10 @@ def set_java_functions(bv: BinaryView) -> None:
                 func.set_user_type(parsed[0])
                 log_info(f"[JNI Helper] {name} ({len(func.parameter_vars)} params)")
                 count += 1
+            else:
+                log_warn(f"[JNI Helper] Failed to parse: {sig}")
         except Exception as e:
-            log_info(f"[JNI Helper] Failed: {name}: {e}")
+            log_warn(f"[JNI Helper] Failed: {name}: {e}")
 
     if count > 0:
         msg = f"[JNI Helper] Set {count} Java_* functions"
